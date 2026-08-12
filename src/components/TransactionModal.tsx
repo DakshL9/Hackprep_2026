@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Transaction, TransactionType } from '@/types';
-import { DEFAULT_CATEGORIES } from '@/lib/constants';
-import { X, DollarSign, Calendar, Tag, FileText, ArrowDownRight, ArrowUpRight, AlertCircle } from 'lucide-react';
+import { Transaction, TransactionType, PaymentMethod } from '@/types';
+import { DEFAULT_CATEGORIES, PAYMENT_METHODS } from '@/lib/constants';
+import { X, Calendar, Tag, FileText, ArrowDownRight, ArrowUpRight, AlertCircle, CreditCard, ChevronDown } from 'lucide-react';
 
 interface TransactionModalProps {
   isOpen: boolean;
@@ -23,6 +23,7 @@ export default function TransactionModal({
   const [description, setDescription] = useState<string>('');
   const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [type, setType] = useState<TransactionType>('expense');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('UPI');
   
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [loading, setLoading] = useState<boolean>(false);
@@ -45,12 +46,14 @@ export default function TransactionModal({
       setDescription(initialTransaction.description);
       setDate(initialTransaction.date);
       setType(initialTransaction.type);
+      setPaymentMethod(initialTransaction.payment_method || 'UPI');
     } else {
       setAmount('');
       setCategory(DEFAULT_CATEGORIES[0]);
       setDescription('');
       setDate(new Date().toISOString().slice(0, 10));
       setType('expense');
+      setPaymentMethod('UPI');
     }
     setError(null);
   }, [initialTransaction, isOpen]);
@@ -63,7 +66,7 @@ export default function TransactionModal({
 
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount) || numAmount <= 0) {
-      setError('Please enter a valid amount greater than 0');
+      setError('Please enter a valid amount in ₹ greater than 0');
       return;
     }
     if (!description.trim()) {
@@ -89,6 +92,7 @@ export default function TransactionModal({
           description: description.trim(),
           date,
           type,
+          payment_method: paymentMethod,
         }),
       });
 
@@ -107,143 +111,183 @@ export default function TransactionModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
-      <div className="glass-card w-full max-w-lg rounded-2xl border border-slate-700/80 p-6 shadow-2xl relative">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
-          <h3 className="text-lg font-bold text-white flex items-center gap-2">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fadeIn overflow-y-auto">
+      <div className="bg-white w-full max-w-lg rounded-[16px] border border-[#E8E4DF] p-6 shadow-xl relative my-auto max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-[#E8E4DF] pb-4 mb-5">
+          <h3 className="ui-card-title flex items-center gap-2">
             {initialTransaction ? 'Edit Transaction' : 'New Transaction'}
           </h3>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+            type="button"
+            className="p-1.5 rounded-[8px] text-[#8A857F] hover:text-[#242321] hover:bg-[#F7F5F2] transition shrink-0"
+            title="Close modal"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {error && (
-          <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+          <div className="mb-4 p-3.5 rounded-[10px] bg-[#FDF0EE] border border-[#B56F67]/30 text-[#B56F67] text-xs flex items-center gap-2 font-medium">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Income / Expense Toggle */}
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">
+            <label className="block text-xs font-semibold text-[#5F5B56] mb-1.5 uppercase tracking-wider">
               Transaction Type
             </label>
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={() => setType('expense')}
-                className={`py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 border ${
+                className={`h-[42px] rounded-[10px] text-xs font-bold transition flex items-center justify-center gap-2 border cursor-pointer ${
                   type === 'expense'
-                    ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 shadow-lg shadow-rose-500/10'
-                    : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:bg-slate-800/60'
+                    ? 'bg-[#FDF0EE] text-[#B56F67] border-[#B56F67]/40'
+                    : 'bg-[#F7F5F2] text-[#5F5B56] border-[#E8E4DF] hover:bg-[#E8E4DF]/50'
                 }`}
               >
-                <ArrowDownRight className="w-4 h-4 text-rose-400" />
+                <ArrowDownRight className="w-4 h-4 text-[#B56F67]" />
                 Expense
               </button>
               <button
                 type="button"
                 onClick={() => setType('income')}
-                className={`py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 border ${
+                className={`h-[42px] rounded-[10px] text-xs font-bold transition flex items-center justify-center gap-2 border cursor-pointer ${
                   type === 'income'
-                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-lg shadow-emerald-500/10'
-                    : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:bg-slate-800/60'
+                    ? 'bg-[#E8F0EA] text-[#4F6F5B] border-[#6F8F7A]/40'
+                    : 'bg-[#F7F5F2] text-[#5F5B56] border-[#E8E4DF] hover:bg-[#E8E4DF]/50'
                 }`}
               >
-                <ArrowUpRight className="w-4 h-4 text-emerald-400" />
+                <ArrowUpRight className="w-4 h-4 text-[#4F6F5B]" />
                 Income
               </button>
             </div>
           </div>
 
+          {/* Amount (₹) */}
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">
-              Amount ($)
+            <label className="block text-xs font-semibold text-[#5F5B56] mb-1.5 uppercase tracking-wider">
+              Amount (₹ INR)
             </label>
-            <div className="relative">
-              <DollarSign className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+            <div className="input-group">
+              <span className="input-icon font-bold text-sm text-[#8A857F]">₹</span>
               <input
                 type="number"
                 step="0.01"
                 placeholder="0.00"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="w-full bg-slate-900/80 border border-slate-700/80 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 font-semibold"
+                className="ui-input input-with-icon font-semibold"
                 required
               />
             </div>
           </div>
 
+          {/* Payment Method */}
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">
+            <label className="block text-xs font-semibold text-[#5F5B56] mb-1.5 uppercase tracking-wider">
+              Payment Method
+            </label>
+            <div className="input-group">
+              <div className="input-icon">
+                <CreditCard className="w-4 h-4" />
+              </div>
+              <select
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+                className="ui-select select-with-icon font-medium"
+              >
+                {PAYMENT_METHODS.map((pm) => (
+                  <option key={pm} value={pm}>
+                    {pm}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="select-arrow" />
+            </div>
+          </div>
+
+          {/* Category */}
+          <div>
+            <label className="block text-xs font-semibold text-[#5F5B56] mb-1.5 uppercase tracking-wider">
               Category
             </label>
-            <div className="relative">
-              <Tag className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+            <div className="input-group">
+              <div className="input-icon">
+                <Tag className="w-4 h-4" />
+              </div>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full bg-slate-900/80 border border-slate-700/80 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 appearance-none font-medium"
+                className="ui-select select-with-icon font-medium"
               >
                 {categories.map((cat) => (
-                  <option key={cat} value={cat} className="bg-slate-900 text-white">
+                  <option key={cat} value={cat}>
                     {cat}
                   </option>
                 ))}
               </select>
+              <ChevronDown className="select-arrow" />
             </div>
           </div>
 
+          {/* Description */}
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">
+            <label className="block text-xs font-semibold text-[#5F5B56] mb-1.5 uppercase tracking-wider">
               Description
             </label>
-            <div className="relative">
-              <FileText className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+            <div className="input-group">
+              <div className="input-icon">
+                <FileText className="w-4 h-4" />
+              </div>
               <input
                 type="text"
-                placeholder="e.g. Whole Foods Groceries, Rent, Salary"
+                placeholder="e.g. Swiggy Lunch, House Rent, Salary via NEFT"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full bg-slate-900/80 border border-slate-700/80 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 font-medium"
+                className="ui-input input-with-icon font-medium"
                 required
               />
             </div>
           </div>
 
+          {/* Date */}
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">
+            <label className="block text-xs font-semibold text-[#5F5B56] mb-1.5 uppercase tracking-wider">
               Date
             </label>
-            <div className="relative">
-              <Calendar className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+            <div className="input-group">
+              <div className="input-icon">
+                <Calendar className="w-4 h-4" />
+              </div>
               <input
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full bg-slate-900/80 border border-slate-700/80 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 font-medium"
+                className="ui-input input-with-icon font-medium"
                 required
               />
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+          {/* Footer Actions */}
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#E8E4DF] mt-6">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              className="btn-secondary"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-5 py-2.5 rounded-xl text-xs font-bold text-white gradient-emerald hover:opacity-90 transition shadow-lg shadow-emerald-500/20 disabled:opacity-50"
+              className="btn-primary disabled:opacity-50"
             >
               {loading ? 'Saving...' : initialTransaction ? 'Update Transaction' : 'Save Transaction'}
             </button>

@@ -1,20 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { processAIQuery } from '@/lib/aiEngine';
+import { generateAICards, processChatbotQuery } from '@/lib/aiEngine';
+import { TimePeriod, ChatMessage } from '@/types';
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt } = await request.json();
+    const body = await request.json();
+    const { mode, period, prompt, history } = body;
 
-    if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
-      return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
+    const selectedPeriod = (period || 'monthly') as TimePeriod;
+
+    if (mode === 'chat') {
+      const userMessage = prompt && typeof prompt === 'string' ? prompt.trim() : 'Summary of my spending';
+      const chatHistory: ChatMessage[] = Array.isArray(history) ? history : [];
+      const botResponse = await processChatbotQuery(userMessage, chatHistory, selectedPeriod);
+
+      return NextResponse.json({
+        reply: botResponse,
+      });
     }
 
-    const aiResult = processAIQuery(prompt.trim());
+    // Default mode: Generate 6 Dynamic AI Cards
+    const cards = await generateAICards(selectedPeriod);
 
-    return NextResponse.json(aiResult);
+    return NextResponse.json({
+      cards,
+      queryType: 'cards_analysis',
+    });
   } catch (error: any) {
+    console.error('API Error in /api/ai-analyst:', error);
     return NextResponse.json(
-      { error: 'Failed to process AI query', details: error.message },
+      { error: 'Failed to process AI request', details: error.message },
       { status: 500 }
     );
   }

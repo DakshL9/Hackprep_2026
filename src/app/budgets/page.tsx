@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import Header from '@/components/Header';
 import TransactionModal from '@/components/TransactionModal';
-import { Target, Plus, Tag, AlertTriangle, Trash2, CheckCircle } from 'lucide-react';
+import { Target, Tag, AlertTriangle, CheckCircle, Plus } from 'lucide-react';
+import { formatINR } from '@/lib/formatters';
 
 export default function BudgetsPage() {
   const [budgets, setBudgets] = useState<any[]>([]);
@@ -60,7 +61,7 @@ export default function BudgetsPage() {
       });
 
       if (res.ok) {
-        setMessage(`Budget cap for ${selectedCategory} updated to $${amt.toFixed(2)}`);
+        setMessage(`Budget limit for ${selectedCategory} set to ${formatINR(amt)}`);
         setBudgetAmount('');
         fetchData();
         setTimeout(() => setMessage(null), 3000);
@@ -112,15 +113,14 @@ export default function BudgetsPage() {
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-screen">
+    <div className="flex-1 flex flex-col min-h-screen bg-[#F7F5F2]">
       <Header
         onAddTransaction={() => setModalOpen(true)}
-        onRefreshData={fetchData}
       />
 
-      <main className="p-6 space-y-6 max-w-7xl mx-auto w-full">
+      <main className="ui-page-container space-y-6">
         {message && (
-          <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold flex items-center gap-2">
+          <div className="p-3.5 rounded-[10px] bg-[#E8F0EA] border border-[#6F8F7A]/30 text-[#4F6F5B] text-xs font-semibold flex items-center gap-2">
             <CheckCircle className="w-4 h-4" />
             <span>{message}</span>
           </div>
@@ -128,24 +128,26 @@ export default function BudgetsPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Set Budget Form Card */}
-          <div className="lg:col-span-6 glass-card p-6 rounded-2xl border border-slate-800 space-y-4">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+          <div className="lg:col-span-6 ui-card space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-[12px] bg-[#E8F0EA] text-[#4F6F5B] border border-[#6F8F7A]/20">
                 <Target className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-bold text-white text-base">Configure Category Budget</h3>
-                <p className="text-xs text-slate-400">Set monthly spending limits for categories</p>
+                <h3 className="ui-card-title">Configure Category Budget</h3>
+                <p className="text-xs text-[#8A857F] font-medium mt-0.5">Set monthly spending limits in ₹ (INR)</p>
               </div>
             </div>
 
-            <form onSubmit={handleSetBudget} className="space-y-3 pt-2">
+            <form onSubmit={handleSetBudget} className="space-y-4 pt-2">
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Select Category</label>
+                <label className="block text-xs font-semibold text-[#5F5B56] mb-1.5 uppercase tracking-wider">
+                  Category
+                </label>
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-medium"
+                  className="w-full ui-select"
                 >
                   {categories.map((c) => (
                     <option key={c.id} value={c.name}>
@@ -156,71 +158,73 @@ export default function BudgetsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Monthly Limit ($)</label>
-                <input
-                  type="number"
-                  placeholder="e.g. 500"
-                  value={budgetAmount}
-                  onChange={(e) => setBudgetAmount(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-semibold"
-                  required
-                />
+                <label className="block text-xs font-semibold text-[#5F5B56] mb-1.5 uppercase tracking-wider">
+                  Monthly Budget Limit (₹ INR)
+                </label>
+                <div className="relative">
+                  <span className="w-4 h-4 text-[#8A857F] font-bold absolute left-3.5 top-2.5 text-sm">₹</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="e.g. 15000"
+                    value={budgetAmount}
+                    onChange={(e) => setBudgetAmount(e.target.value)}
+                    className="w-full ui-input pl-10 font-semibold"
+                    required
+                  />
+                </div>
               </div>
 
-              <button
-                type="submit"
-                className="w-full py-2.5 rounded-xl text-xs font-bold text-white gradient-emerald hover:opacity-90 transition shadow-lg shadow-emerald-500/20"
-              >
-                Save Category Budget
+              <button type="submit" className="btn-primary w-full">
+                Save Budget Limit
               </button>
             </form>
           </div>
 
           {/* Add Category Form Card */}
-          <div className="lg:col-span-6 glass-card p-6 rounded-2xl border border-slate-800 space-y-4">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30">
+          <div className="lg:col-span-6 ui-card space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-[12px] bg-[#E8F0EA] text-[#4F6F5B] border border-[#6F8F7A]/20">
                 <Tag className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-bold text-white text-base">Add New Category</h3>
-                <p className="text-xs text-slate-400">Expand your category taxonomy</p>
+                <h3 className="ui-card-title">Custom Category Manager</h3>
+                <p className="text-xs text-[#8A857F] font-medium mt-0.5">Add new Indian expense categories</p>
               </div>
             </div>
 
-            <form onSubmit={handleAddCategory} className="space-y-3 pt-2">
+            <form onSubmit={handleAddCategory} className="space-y-4 pt-2">
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Category Name</label>
+                <label className="block text-xs font-semibold text-[#5F5B56] mb-1.5 uppercase tracking-wider">
+                  Category Name
+                </label>
                 <input
                   type="text"
-                  placeholder="e.g. Fitness, Software, Pet Care"
+                  placeholder="e.g. 🍿 Cinema, ☕ Café"
                   value={newCategoryName}
                   onChange={(e) => setNewCategoryName(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500 font-medium"
+                  className="w-full ui-input"
                   required
                 />
               </div>
 
-              <button
-                type="submit"
-                className="w-full py-2.5 rounded-xl text-xs font-bold text-white bg-purple-600 hover:bg-purple-500 transition shadow-lg shadow-purple-500/20"
-              >
-                Create Category
+              <button type="submit" className="btn-primary w-full">
+                <Plus className="w-4 h-4" /> Create Category
               </button>
             </form>
 
-            <div className="pt-3 border-t border-slate-800">
-              <h4 className="text-xs font-bold text-slate-400 mb-2">Existing System Categories ({categories.length})</h4>
+            <div className="pt-3 border-t border-[#E8E4DF]">
+              <h4 className="text-xs font-bold text-[#5F5B56] mb-2">Active Categories ({categories.length})</h4>
               <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pr-1">
                 {categories.map((c) => (
                   <span
                     key={c.id}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-900 text-slate-300 border border-slate-800"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] text-xs font-medium bg-[#F7F5F2] text-[#242321] border border-[#E8E4DF]"
                   >
                     {c.name}
                     <button
                       onClick={() => handleDeleteCategory(c.id, c.name)}
-                      className="text-slate-500 hover:text-rose-400 transition"
+                      className="text-[#8A857F] hover:text-[#B56F67] transition font-bold"
                       title="Delete category"
                     >
                       &times;
@@ -232,54 +236,60 @@ export default function BudgetsPage() {
           </div>
         </div>
 
-        {/* Active Budgets Overview Grid */}
-        <div className="glass-card p-6 rounded-2xl border border-slate-800">
-          <h3 className="font-bold text-white text-base mb-4 flex items-center gap-2">
-            <Target className="w-4 h-4 text-emerald-400" /> Current Month Budget Utilization
-          </h3>
+        {/* Existing Budgets Progress List */}
+        <div className="ui-card space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="ui-card-title flex items-center gap-2">
+                <Target className="w-4 h-4 text-[#6F8F7A]" />
+                Active Monthly Category Budgets
+              </h3>
+              <p className="text-xs text-[#8A857F] font-medium mt-0.5">Real-time spending tracked against limits for this month (₹)</p>
+            </div>
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-[8px] bg-[#E8F0EA] text-[#4F6F5B]">
+              {budgets.length} Active Budgets
+            </span>
+          </div>
 
           {budgets.length === 0 ? (
-            <p className="text-xs text-slate-400">No category limits set yet. Use the form above to add your first budget limit.</p>
+            <div className="py-8 text-center border border-[#E8E4DF] rounded-[12px] bg-[#F7F5F2]">
+              <p className="text-xs text-[#8A857F] font-medium">No category budget limits configured for this month.</p>
+            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {budgets.map((b) => {
-                const isOver = b.isOverBudget;
+                const isOver = b.spentAmount > b.budgetAmount;
+                const percentage = b.budgetAmount > 0 ? Math.round((b.spentAmount / b.budgetAmount) * 100) : 0;
+                const remaining = Math.max(0, b.budgetAmount - b.spentAmount);
+
                 return (
-                  <div
-                    key={b.id}
-                    className={`p-4 rounded-xl border ${
-                      isOver
-                        ? 'bg-rose-950/20 border-rose-500/40'
-                        : 'bg-slate-900/60 border-slate-800'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between text-xs font-bold text-white mb-2">
-                      <span>{b.category}</span>
-                      {isOver && (
-                        <span className="text-[10px] text-rose-400 bg-rose-500/20 px-2 py-0.5 rounded border border-rose-500/30 flex items-center gap-1">
+                  <div key={b.id} className="p-4 rounded-[12px] bg-[#F7F5F2] border border-[#E8E4DF] space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-sm text-[#242321]">{b.category}</span>
+                      {isOver ? (
+                        <span className="px-2 py-0.5 rounded-[6px] text-[10px] font-bold bg-[#FDF0EE] text-[#B56F67] border border-[#B56F67]/20 flex items-center gap-1">
                           <AlertTriangle className="w-3 h-3" /> Over Cap
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-[6px] text-[10px] font-medium bg-[#E8F0EA] text-[#4F6F5B]">
+                          {formatINR(remaining)} left
                         </span>
                       )}
                     </div>
 
-                    <div className="text-xl font-extrabold text-white mb-1">
-                      ${b.spentAmount.toFixed(2)}{' '}
-                      <span className="text-xs text-slate-400 font-normal">/ ${b.budgetAmount.toFixed(2)}</span>
-                    </div>
-
-                    {/* Progress Bar */}
-                    <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden mb-2">
-                      <div
-                        className={`h-full rounded-full transition-all ${
-                          isOver ? 'bg-rose-500' : b.percentage > 85 ? 'bg-amber-500' : 'bg-emerald-500'
-                        }`}
-                        style={{ width: `${Math.min(100, b.percentage)}%` }}
-                      ></div>
-                    </div>
-
-                    <div className="flex justify-between text-[11px] text-slate-400 font-medium">
-                      <span>{b.percentage}% consumed</span>
-                      <span>${b.remaining.toFixed(2)} left</span>
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-xs text-[#5F5B56]">
+                        <span>Spent: <strong className="text-[#242321]">{formatINR(b.spentAmount)}</strong></span>
+                        <span>Limit: <strong className="text-[#242321]">{formatINR(b.amount)}</strong></span>
+                      </div>
+                      <div className="w-full h-2 rounded-full bg-white overflow-hidden border border-[#E8E4DF]">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            isOver ? 'bg-[#B56F67]' : percentage > 85 ? 'bg-[#C49A5A]' : 'bg-[#6F8F7A]'
+                          }`}
+                          style={{ width: `${Math.min(100, percentage)}%` }}
+                        ></div>
+                      </div>
                     </div>
                   </div>
                 );

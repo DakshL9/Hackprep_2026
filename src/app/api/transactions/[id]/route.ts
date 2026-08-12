@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
+import { PAYMENT_METHODS } from '@/lib/constants';
 
 export async function GET(
   request: NextRequest,
@@ -32,7 +33,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { amount, category, description, date, type } = body;
+    const { amount, category, description, date, type, payment_method } = body;
 
     if (!amount || typeof amount !== 'number' || amount <= 0) {
       return NextResponse.json(
@@ -53,14 +54,16 @@ export async function PUT(
       return NextResponse.json({ error: 'Type must be income or expense' }, { status: 400 });
     }
 
+    const method = PAYMENT_METHODS.includes(payment_method) ? payment_method : 'UPI';
+
     const db = getDb();
     const stmt = db.prepare(`
       UPDATE transactions
-      SET amount = ?, category = ?, description = ?, date = ?, type = ?
+      SET amount = ?, category = ?, description = ?, date = ?, type = ?, payment_method = ?
       WHERE id = ?
     `);
 
-    const result = stmt.run(amount, category.trim(), description.trim(), date, type, id);
+    const result = stmt.run(amount, category.trim(), description.trim(), date, type, method, id);
 
     if (result.changes === 0) {
       return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });

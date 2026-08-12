@@ -1,6 +1,6 @@
 import { DatabaseSync } from 'node:sqlite';
 import path from 'path';
-import { DEFAULT_CATEGORIES } from './constants';
+import { DEFAULT_CATEGORIES, PAYMENT_METHODS } from './constants';
 
 const DB_PATH = path.join(process.cwd(), 'spendsense.db');
 
@@ -16,7 +16,7 @@ export function getDb(): DatabaseSync {
   return dbInstance;
 }
 
-export { DEFAULT_CATEGORIES };
+export { DEFAULT_CATEGORIES, PAYMENT_METHODS };
 
 function initTables(db: DatabaseSync) {
   // Categories Table
@@ -28,7 +28,7 @@ function initTables(db: DatabaseSync) {
     );
   `);
 
-  // Seed default categories if empty
+  // Seed default Indian categories if empty
   const countStmt = db.prepare('SELECT COUNT(*) as count FROM categories');
   const result = countStmt.get() as { count: number };
   if (!result || result.count === 0) {
@@ -47,12 +47,24 @@ function initTables(db: DatabaseSync) {
       description TEXT NOT NULL,
       date TEXT NOT NULL,
       type TEXT NOT NULL CHECK(type IN ('income', 'expense')),
+      payment_method TEXT DEFAULT 'UPI',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
     CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
     CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category);
     CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type);
   `);
+
+  // Migration check: Add payment_method column if existing database table lacks it
+  try {
+    const tableInfo = db.prepare("PRAGMA table_info(transactions)").all() as Array<{ name: string }>;
+    const hasPaymentMethod = tableInfo.some((col) => col.name === 'payment_method');
+    if (!hasPaymentMethod) {
+      db.exec("ALTER TABLE transactions ADD COLUMN payment_method TEXT DEFAULT 'UPI';");
+    }
+  } catch (err) {
+    // Ignore migration error if table created fresh
+  }
 
   // Budgets Table
   db.exec(`

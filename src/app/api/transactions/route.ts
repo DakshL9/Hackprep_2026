@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
+import { PAYMENT_METHODS } from '@/lib/constants';
 
 // GET /api/transactions
 export async function GET(request: NextRequest) {
@@ -9,6 +10,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || '';
     const category = searchParams.get('category') || '';
     const type = searchParams.get('type') || '';
+    const paymentMethod = searchParams.get('paymentMethod') || '';
     const startDate = searchParams.get('startDate') || '';
     const endDate = searchParams.get('endDate') || '';
     const limit = parseInt(searchParams.get('limit') || '500', 10);
@@ -29,6 +31,11 @@ export async function GET(request: NextRequest) {
     if (type && type !== 'All') {
       query += ' AND type = ?';
       params.push(type);
+    }
+
+    if (paymentMethod && paymentMethod !== 'All') {
+      query += ' AND payment_method = ?';
+      params.push(paymentMethod);
     }
 
     if (startDate) {
@@ -60,7 +67,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { amount, category, description, date, type } = body;
+    const { amount, category, description, date, type, payment_method } = body;
 
     // Strict Validations
     if (!amount || typeof amount !== 'number' || amount <= 0) {
@@ -82,13 +89,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Type must be either income or expense' }, { status: 400 });
     }
 
+    const method = PAYMENT_METHODS.includes(payment_method) ? payment_method : 'UPI';
+
     const db = getDb();
     const stmt = db.prepare(`
-      INSERT INTO transactions (amount, category, description, date, type)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO transactions (amount, category, description, date, type, payment_method)
+      VALUES (?, ?, ?, ?, ?, ?)
     `);
 
-    const info = stmt.run(amount, category.trim(), description.trim(), date, type);
+    const info = stmt.run(amount, category.trim(), description.trim(), date, type, method);
 
     const createdTx = db
       .prepare('SELECT * FROM transactions WHERE id = ?')

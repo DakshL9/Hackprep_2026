@@ -8,12 +8,12 @@ import MonthlyBarChart from '@/components/MonthlyBarChart';
 import BudgetProgressBar from '@/components/BudgetProgressBar';
 import TransactionTable from '@/components/TransactionTable';
 import TransactionModal from '@/components/TransactionModal';
-import { Transaction, AnalyticsSummary } from '@/types';
+import { Transaction, AnalyticsSummary, TimePeriod } from '@/types';
 import { 
   TrendingUp, 
   TrendingDown, 
   Wallet, 
-  Calendar, 
+  Target,
   Sparkles,
   ArrowRight,
   Bot
@@ -21,6 +21,7 @@ import {
 import Link from 'next/link';
 
 export default function DashboardPage() {
+  const [period, setPeriod] = useState<TimePeriod>('monthly');
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
@@ -34,8 +35,8 @@ export default function DashboardPage() {
     try {
       setLoading(true);
       
-      // Fetch Analytics (contains SQLite real computations)
-      const analyticsRes = await fetch('/api/analytics');
+      // Fetch Period-Filtered Analytics
+      const analyticsRes = await fetch(`/api/analytics?period=${period}`);
       const analyticsData = await analyticsRes.json();
       if (analyticsData.summary) {
         setSummary(analyticsData.summary);
@@ -56,10 +57,10 @@ export default function DashboardPage() {
       }
     } catch (err) {
       console.error('Failed to load dashboard data', err);
-    } fontFinally: {
+    } finally {
       setLoading(false);
     }
-  }, []);
+  }, [period]);
 
   useEffect(() => {
     fetchData();
@@ -83,79 +84,82 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-screen">
+    <div className="flex-1 flex flex-col min-h-screen bg-[#F7F5F2]">
       <Header 
         onAddTransaction={() => {
           setEditingTransaction(null);
           setModalOpen(true);
         }}
+        period={period}
+        onPeriodChange={setPeriod}
         onRefreshData={fetchData}
       />
 
-      <main className="p-6 space-y-6 max-w-7xl mx-auto w-full">
-        {/* KPI Cards Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <main className="ui-page-container space-y-6">
+        {/* KPI Summary Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           <StatCard
-            title="Total Income"
-            value={summary?.totalIncome || 0}
-            type="income"
-            subtitle="All-time earnings logged"
-            icon={TrendingUp}
-          />
-          <StatCard
-            title="Total Expenses"
+            title="Total Spending"
             value={summary?.totalExpenses || 0}
             type="expense"
-            subtitle="All-time expenses logged"
+            subtitle={`Expenses in ${period}`}
             icon={TrendingDown}
           />
           <StatCard
-            title="Current Balance"
-            value={summary?.currentBalance || 0}
-            type="balance"
-            subtitle="Net total cash flow"
-            icon={Wallet}
+            title="Income"
+            value={summary?.totalIncome || 0}
+            type="income"
+            subtitle={`Earnings in ${period}`}
+            icon={TrendingUp}
           />
           <StatCard
-            title="Monthly Spending"
-            value={summary?.monthlySpending || 0}
+            title="Remaining Budget"
+            value={summary?.remainingBudget || 0}
+            type="balance"
+            subtitle="Available category caps"
+            icon={Target}
+          />
+          <StatCard
+            title="Savings Rate"
+            value={summary?.savingsRate || 0}
+            isPercentage={true}
             type="neutral"
-            subtitle="Current calendar month"
-            icon={Calendar}
+            subtitle="Net saved ratio"
+            icon={Wallet}
           />
         </div>
 
-        {/* Dynamic Charts Section */}
+        {/* Dynamic Charts Two-Column Section */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Spending by Category Donut Chart (Real SQLite SUM query) */}
-          <div className="lg:col-span-7">
-            <CategoryDonutChart data={summary?.categoryBreakdown || []} />
+          {/* Spending Overview Bar / Trend Chart */}
+          <div className="lg:col-span-6">
+            <MonthlyBarChart data={summary?.monthlyBreakdown || []} />
           </div>
 
-          {/* Monthly Income vs Expense Trend Bar Chart */}
-          <div className="lg:col-span-5">
-            <MonthlyBarChart data={summary?.monthlyBreakdown || []} />
+          {/* Where Your Money Goes Donut Chart */}
+          <div className="lg:col-span-6">
+            <CategoryDonutChart data={summary?.categoryBreakdown || []} />
           </div>
         </div>
 
-        {/* AI Analyst Banner Teaser */}
-        <div className="glass-card p-5 rounded-2xl border border-purple-500/30 bg-gradient-to-r from-purple-950/40 via-indigo-950/30 to-slate-900/60 flex flex-col sm:flex-row items-center justify-between gap-4">
+        {/* AI Analyst Teaser Banner */}
+        <div className="ui-card flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center shrink-0">
-              <Bot className="w-5 h-5 text-purple-400" />
+            <div className="w-10 h-10 rounded-[12px] bg-[#E8F0EA] text-[#4F6F5B] flex items-center justify-center shrink-0 border border-[#6F8F7A]/20">
+              <Bot className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="font-bold text-white text-sm flex items-center gap-2">
-                SpendSense AI Assistant <Sparkles className="w-4 h-4 text-purple-400" />
+              <h4 className="ui-card-title flex items-center gap-2">
+                SpendSense AI Assistant <Sparkles className="w-4 h-4 text-[#6F8F7A]" />
               </h4>
-              <p className="text-xs text-slate-300">
-                Ask <span className="text-indigo-300 font-semibold">"Where am I spending the most?"</span> or <span className="text-indigo-300 font-semibold">"Am I over budget?"</span> for DB-verified financial answers.
+              <p className="text-xs text-[#5F5B56] font-medium mt-0.5">
+                Understand your spending patterns and get practical ways to save in Indian Rupees (₹).
               </p>
             </div>
           </div>
           <Link
             href="/ai-analyst"
-            className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-purple-600 hover:bg-purple-500 transition shadow-lg shadow-purple-500/20 flex items-center gap-1.5 shrink-0"
+            className="btn-primary shrink-0 text-xs"
           >
             Launch AI Analyst <ArrowRight className="w-3.5 h-3.5" />
           </Link>

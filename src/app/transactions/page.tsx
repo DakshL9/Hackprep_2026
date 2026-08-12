@@ -54,7 +54,7 @@ export default function TransactionsPage() {
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-screen">
+    <div className="flex-1 flex flex-col min-h-screen bg-[#F7F5F2]">
       <Header
         onAddTransaction={() => {
           setEditingTransaction(null);
@@ -63,7 +63,7 @@ export default function TransactionsPage() {
         onRefreshData={fetchData}
       />
 
-      <main className="p-6 max-w-7xl mx-auto w-full">
+      <main className="ui-page-container">
         <TransactionTable
           transactions={transactions}
           onEdit={handleEdit}

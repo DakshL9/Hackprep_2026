@@ -1,28 +1,33 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
-import { Transaction } from '@/types';
+import { Transaction, TimePeriod } from '@/types';
+import { getPeriodFilter } from '@/lib/period';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const periodParam = (searchParams.get('period') || 'monthly') as TimePeriod;
+    const periodFilter = getPeriodFilter(periodParam);
+
     const db = getDb();
     const currentMonth = new Date().toISOString().slice(0, 7);
 
-    // 1. Total Income
+    // 1. Period-Filtered Income
     const incomeRow = db
-      .prepare("SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE type = 'income'")
+      .prepare(`SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE type = 'income' AND ${periodFilter.whereClause}`)
       .get() as { total: number };
     const totalIncome = incomeRow?.total || 0;
 
-    // 2. Total Expenses
+    // 2. Period-Filtered Expenses
     const expenseRow = db
-      .prepare("SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE type = 'expense'")
+      .prepare(`SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE type = 'expense' AND ${periodFilter.whereClause}`)
       .get() as { total: number };
     const totalExpenses = expenseRow?.total || 0;
 
     // 3. Current Balance
     const currentBalance = totalIncome - totalExpenses;
 
-    // 4. Monthly Spending (Current Month)
+    // 4. Monthly Spending
     const monthlySpendingRow = db
       .prepare(`
         SELECT COALESCE(SUM(amount), 0) as total 
@@ -32,18 +37,21 @@ export async function GET() {
       .get(currentMonth) as { total: number };
     const monthlySpending = monthlySpendingRow?.total || 0;
 
-    // 5. Average Spending per transaction (Expense)
+    // 5. Savings Rate (%) = ((Income - Expenses) / Income) * 100
+    const savingsRate = totalIncome > 0 ? Math.max(0, Math.round(((totalIncome - totalExpenses) / totalIncome) * 100)) : 0;
+
+    // 6. Average Spending
     const avgRow = db
-      .prepare("SELECT COALESCE(AVG(amount), 0) as avgSpend FROM transactions WHERE type = 'expense'")
+      .prepare(`SELECT COALESCE(AVG(amount), 0) as avgSpend FROM transactions WHERE type = 'expense' AND ${periodFilter.whereClause}`)
       .get() as { avgSpend: number };
     const averageSpending = Math.round((avgRow?.avgSpend || 0) * 100) / 100;
 
-    // 6. Largest Transaction (Expense)
+    // 7. Largest Transaction in Period
     const largestTx = db
-      .prepare("SELECT * FROM transactions WHERE type = 'expense' ORDER BY amount DESC LIMIT 1")
+      .prepare(`SELECT * FROM transactions WHERE type = 'expense' AND ${periodFilter.whereClause} ORDER BY amount DESC LIMIT 1`)
       .get() as Transaction | undefined;
 
-    // 7. Spending by Category (Real SQLite SUM query requested in specs)
+    // 8. Spending by Category (Real SQLite SUM query for selected period)
     const categoryRows = db
       .prepare(`
         SELECT 
@@ -51,7 +59,7 @@ export async function GET() {
           SUM(amount) as total,
           COUNT(*) as count
         FROM transactions 
-        WHERE type = 'expense' 
+        WHERE type = 'expense' AND ${periodFilter.whereClause}
         GROUP BY category 
         ORDER BY total DESC
       `)
@@ -69,7 +77,7 @@ export async function GET() {
       ? { category: categoryBreakdown[0].category, amount: categoryBreakdown[0].total }
       : null;
 
-    // 8. Monthly Breakdown (Last 6 Months Income vs Expenses)
+    // 9. Monthly / Trend Breakdown
     const monthlyRows = db
       .prepare(`
         SELECT 
@@ -90,7 +98,7 @@ export async function GET() {
       net: m.income - m.expense,
     }));
 
-    // 9. Budget Progress & Over-budget categories
+    // 10. Budget Progress & Over-budget categories
     const budgetRows = db
       .prepare(`
         SELECT 
@@ -110,7 +118,6 @@ export async function GET() {
 
     let totalBudgeted = 0;
     let totalSpentInBudgets = 0;
-
     const overBudgetCategories: any[] = [];
 
     const budgetProgressList = budgetRows.map((b) => {
@@ -132,14 +139,18 @@ export async function GET() {
       return item;
     });
 
+    const remainingBudget = Math.max(0, totalBudgeted - totalSpentInBudgets);
     const budgetUsagePercentage = totalBudgeted > 0 ? Math.round((totalSpentInBudgets / totalBudgeted) * 100) : 0;
 
     return NextResponse.json({
       summary: {
+        period: periodParam,
         totalIncome,
         totalExpenses,
         currentBalance,
         monthlySpending,
+        remainingBudget,
+        savingsRate,
         averageSpending,
         largestTransaction: largestTx || null,
         highestCategory,

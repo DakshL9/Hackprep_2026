@@ -1,72 +1,64 @@
 'use client';
 
 import { LucideIcon } from 'lucide-react';
+import { formatINR } from '@/lib/formatters';
 
 interface StatCardProps {
   title: string;
   value: number;
-  type?: 'income' | 'expense' | 'neutral' | 'balance';
+  isPercentage?: boolean;
+  type?: 'expense' | 'income' | 'neutral' | 'balance';
   subtitle?: string;
   icon: LucideIcon;
   badge?: string;
 }
 
-export default function StatCard({ title, value, type = 'neutral', subtitle, icon: Icon, badge }: StatCardProps) {
-  const formattedValue = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-  }).format(value);
+export default function StatCard({
+  title,
+  value,
+  isPercentage = false,
+  type = 'neutral',
+  subtitle,
+  icon: Icon,
+  badge,
+}: StatCardProps) {
+  const formattedValue = isPercentage
+    ? `${value}%`
+    : formatINR(value);
 
-  const getTheme = () => {
+  const getAccent = () => {
     switch (type) {
       case 'income':
-        return {
-          bg: 'from-emerald-500/10 to-emerald-950/20 border-emerald-500/30',
-          iconBg: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-          text: 'text-emerald-400',
-        };
+        return 'text-[#4F6F5B] bg-[#E8F0EA] border border-[#6F8F7A]/20';
       case 'expense':
-        return {
-          bg: 'from-rose-500/10 to-rose-950/20 border-rose-500/30',
-          iconBg: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
-          text: 'text-rose-400',
-        };
+        return 'text-[#B56F67] bg-[#FDF0EE] border border-[#B56F67]/20';
       case 'balance':
-        return {
-          bg: 'from-indigo-500/10 to-purple-950/20 border-indigo-500/30',
-          iconBg: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
-          text: value >= 0 ? 'text-indigo-400' : 'text-rose-400',
-        };
+        return 'text-[#6F8F7A] bg-[#E8F0EA] border border-[#6F8F7A]/20';
       default:
-        return {
-          bg: 'from-slate-800/40 to-slate-900/60 border-slate-800',
-          iconBg: 'bg-slate-800 text-slate-300 border-slate-700',
-          text: 'text-slate-100',
-        };
+        return 'text-[#5F5B56] bg-[#F7F5F2] border border-[#E8E4DF]';
     }
   };
 
-  const theme = getTheme();
+  const accentClass = getAccent();
 
   return (
-    <div className={`glass-card glass-card-hover bg-gradient-to-br ${theme.bg} p-5 rounded-2xl border relative overflow-hidden`}>
+    <div className="ui-card ui-card-hover flex flex-col justify-between h-full">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{title}</span>
-        <div className={`p-2.5 rounded-xl border ${theme.iconBg}`}>
-          <Icon className="w-5 h-5" />
+        <span className="text-xs font-semibold text-[#5F5B56] uppercase tracking-wider">{title}</span>
+        <div className={`p-2.5 rounded-[12px] ${accentClass}`}>
+          <Icon className="w-4 h-4" />
         </div>
       </div>
 
-      <div className="mt-3">
-        <div className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${theme.text}`}>
+      <div className="mt-4">
+        <div className="text-[28px] sm:text-[32px] font-bold text-[#242321] tracking-tight leading-none">
           {formattedValue}
         </div>
-        {subtitle && <p className="text-xs text-slate-400 mt-1 font-medium">{subtitle}</p>}
+        {subtitle && <p className="text-xs text-[#8A857F] mt-2 font-medium">{subtitle}</p>}
       </div>
 
       {badge && (
-        <span className="absolute top-3 right-12 px-2 py-0.5 text-[10px] font-bold uppercase rounded-full bg-slate-800/80 text-slate-300 border border-slate-700">
+        <span className="mt-3 inline-block self-start px-2 py-0.5 text-[10px] font-bold uppercase rounded-[6px] bg-[#F7F5F2] text-[#5F5B56] border border-[#E8E4DF]">
           {badge}
         </span>
       )}
