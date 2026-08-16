@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
 import { PAYMENT_METHODS } from '@/lib/constants';
+import { createClient } from '@/lib/supabase-server';
 
 // GET /api/transactions
 export async function GET(request: NextRequest) {
   try {
-    const db = getDb();
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
     const category = searchParams.get('category') || '';
@@ -15,46 +24,47 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get('endDate') || '';
     const limit = parseInt(searchParams.get('limit') || '500', 10);
 
-    let query = 'SELECT * FROM transactions WHERE 1=1';
-    const params: any[] = [];
+    let query = supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', user.id);
 
     if (search) {
-      query += ' AND (description LIKE ? OR category LIKE ?)';
-      params.push(`%${search}%`, `%${search}%`);
+      query = query.or(`description.ilike.%${search}%,category.ilike.%${search}%`);
     }
 
     if (category && category !== 'All') {
-      query += ' AND category = ?';
-      params.push(category);
+      query = query.eq('category', category);
     }
 
     if (type && type !== 'All') {
-      query += ' AND type = ?';
-      params.push(type);
+      query = query.eq('type', type);
     }
 
     if (paymentMethod && paymentMethod !== 'All') {
-      query += ' AND payment_method = ?';
-      params.push(paymentMethod);
+      query = query.eq('payment_method', paymentMethod);
     }
 
     if (startDate) {
-      query += ' AND date >= ?';
-      params.push(startDate);
+      query = query.gte('date', startDate);
     }
 
     if (endDate) {
-      query += ' AND date <= ?';
-      params.push(endDate);
+      query = query.lte('date', endDate);
     }
 
-    query += ' ORDER BY date DESC, id DESC LIMIT ?';
-    params.push(limit);
+    query = query
+      .order('date', { ascending: false })
+      .order('id', { ascending: false })
+      .limit(limit);
 
-    const stmt = db.prepare(query);
-    const transactions = stmt.all(...params);
+    const { data: transactions, error } = await query;
 
-    return NextResponse.json({ transactions });
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return NextResponse.json({ transactions: transactions || [] });
   } catch (error: any) {
     return NextResponse.json(
       { error: 'Failed to fetch transactions', details: error.message },
@@ -66,7 +76,18 @@ export async function GET(request: NextRequest) {
 // POST /api/transactions
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
+
     const { amount, category, description, date, type, payment_method } = body;
 
     // Strict Validations
@@ -91,17 +112,23 @@ export async function POST(request: NextRequest) {
 
     const method = PAYMENT_METHODS.includes(payment_method) ? payment_method : 'UPI';
 
-    const db = getDb();
-    const stmt = db.prepare(`
-      INSERT INTO transactions (amount, category, description, date, type, payment_method)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
+    const { data: createdTx, error } = await supabase
+      .from('transactions')
+      .insert({
+        user_id: user.id,
+        amount,
+        category: category.trim(),
+        description: description.trim(),
+        date,
+        type,
+        payment_method: method,
+      })
+      .select()
+      .single();
 
-    const info = stmt.run(amount, category.trim(), description.trim(), date, type, method);
-
-    const createdTx = db
-      .prepare('SELECT * FROM transactions WHERE id = ?')
-      .get(info.lastInsertRowid);
+    if (error) {
+      throw new Error(error.message);
+    }
 
     return NextResponse.json({ transaction: createdTx, success: true }, { status: 201 });
   } catch (error: any) {

@@ -1,15 +1,15 @@
-import { getDb } from './db';
+import { SupabaseClient } from '@supabase/supabase-js';
 
-export function seedDemoData() {
-  const db = getDb();
+export async function seedDemoData(supabase: SupabaseClient, userId: string) {
+  if (!userId) throw new Error('User ID is required for seeding');
 
-  // Clear existing records to ensure a fresh demo dataset
-  db.exec('DELETE FROM transactions;');
-  db.exec('DELETE FROM budgets;');
+  // Clear existing records for THIS USER ONLY in Supabase
+  await supabase.from('transactions').delete().eq('user_id', userId);
+  await supabase.from('budgets').delete().eq('user_id', userId);
 
   const currentYearMonth = new Date().toISOString().slice(0, 7); // e.g., "2026-08"
 
-  // 1. Seed Realistic Category Budgets for the current month (in ₹ INR)
+  // 1. Seed Realistic Category Budgets for the current month (in ₹ INR) for this user
   const sampleBudgets = [
     { category: '🍛 Food & Dining', amount: 12000 },
     { category: '🛒 Groceries', amount: 15000 },
@@ -24,15 +24,15 @@ export function seedDemoData() {
     { category: '💰 Investments', amount: 20000 },
   ];
 
-  const insertBudget = db.prepare(`
-    INSERT INTO budgets (category, amount, month)
-    VALUES (?, ?, ?)
-    ON CONFLICT(category, month) DO UPDATE SET amount = excluded.amount
-  `);
+  const budgetInserts = sampleBudgets.map((b) => ({
+    user_id: userId,
+    category: b.category,
+    amount: b.amount,
+    month: currentYearMonth,
+  }));
 
-  for (const b of sampleBudgets) {
-    insertBudget.run(b.category, b.amount, currentYearMonth);
-  }
+  const { error: budgetErr } = await supabase.from('budgets').insert(budgetInserts);
+  if (budgetErr) throw new Error(`Failed to seed budgets: ${budgetErr.message}`);
 
   // 2. Generate 50+ Realistic Indian Transactions across dates, amounts, categories, and payment methods
   const today = new Date();
@@ -118,20 +118,22 @@ export function seedDemoData() {
     { amount: 600, category: '🚕 Transport', description: 'Local Taxi Commute', date: getDateAgo(75), type: 'expense', payment_method: 'Cash' }
   ];
 
-  const insertTx = db.prepare(`
-    INSERT INTO transactions (amount, category, description, date, type, payment_method)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `);
+  const transactionInserts = rawTransactions.map((tx) => ({
+    user_id: userId,
+    amount: tx.amount,
+    category: tx.category,
+    description: tx.description,
+    date: tx.date,
+    type: tx.type,
+    payment_method: tx.payment_method,
+  }));
 
-  db.exec('BEGIN TRANSACTION;');
-  for (const tx of rawTransactions) {
-    insertTx.run(tx.amount, tx.category, tx.description, tx.date, tx.type, tx.payment_method);
-  }
-  db.exec('COMMIT;');
+  const { error: txErr } = await supabase.from('transactions').insert(transactionInserts);
+  if (txErr) throw new Error(`Failed to seed transactions: ${txErr.message}`);
 
   return {
     success: true,
-    message: `Database successfully seeded with ${rawTransactions.length} realistic Indian transaction records!`,
+    message: `Database successfully seeded with ${rawTransactions.length} realistic Indian transaction records for your account!`,
     count: rawTransactions.length,
   };
 }
